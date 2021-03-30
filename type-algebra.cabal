@@ -1,0 +1,27 @@
+cabal-version:       >=1.10
+name:                type-algebra
+version:             0.1.0.0
+license-file:        LICENSE
+author:              Brian McKenna
+maintainer:          brian@brianmckenna.org
+build-type:          Simple
+extra-source-files:  CHANGELOG.md
+
+library
+  build-depends:       base >=4.13 && <4.16
+                     , containers
+                     , lens
+                     , transformers
+  exposed-modules:     TypeAlgebra
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+
+test-suite type-algebra-tests
+  build-depends:       type-algebra
+                     , base
+                     , containers
+                     , hedgehog
+  main-is:             Main.hs
+  hs-source-dirs:      test
+  default-language:    Haskell2010
+  type:                exitcode-stdio-1.0
