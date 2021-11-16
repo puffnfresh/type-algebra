@@ -4,12 +4,11 @@ module Main where
 
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.Map as M
-import qualified Data.Set as S
 import Data.Tree (Tree (Node))
 import Hedgehog (Gen, Group (..), Property, checkParallel, forAll, property, withTests, (===))
 import Hedgehog.Gen (element, unicodeAll)
 import Hedgehog.Main (defaultMain)
-import TypeAlgebra (Algebra (..), Variance (..), algebraArity, variance, forestPaths)
+import TypeAlgebra (Algebra (..), RewriteLabel (RewriteArithmetic, RewriteCommutative), Variance (..), algebraArity, algebraSolutions, forestPaths, variance)
 
 main :: IO ()
 main =
@@ -23,6 +22,7 @@ main =
               ("variance negative", propertyVarianceNegative),
               ("variance forall", propertyVarianceForall),
               ("variance equivalence", propertyVarianceEquivalence),
+              ("no repetitive rewrites in solutions", propertyRemoveDuplicates),
               ("2 -> 2", propertyExampleBoolBool),
               ("∀ x. x -> x", propertyExampleIdentity),
               ("∀ x. x -> (x * x)", propertyExampleOne),
@@ -90,13 +90,28 @@ propertyVarianceEquivalence =
 propertyForestPaths :: Property
 propertyForestPaths =
   withTests 1 . property $
-    forestPaths [Node 1 [Node 2 [], Node 3 [Node 4 []]]] === [1 :| [], 2 :| [1], 3 :| [1], 4 :| [3, 1]]
+    forestPaths [Node (1 :: Int) [Node 2 [], Node 3 [Node 4 []]]] === [1 :| [], 2 :| [1], 3 :| [1], 4 :| [3, 1]]
 
 propertyForestPathsInfinite :: Property
 propertyForestPathsInfinite =
   withTests 1 . property $ do
     let node = Node () [node, node]
     take 5 (forestPaths [node, node]) === [() :| [], () :| [], () :| [()], () :| [()], () :| [(), ()]]
+
+propertyRemoveDuplicates :: Property
+propertyRemoveDuplicates =
+  withTests 1 . property $ do
+    let example = Exponent (Sum (Arity 1) (Arity 2)) (Arity 3) :: Algebra ()
+    algebraSolutions example
+      === [ (RewriteArithmetic, Arity 27)
+              :| [(RewriteArithmetic, Exponent (Arity 3) (Arity 3))],
+            (RewriteArithmetic, Arity 27)
+              :| [ (RewriteArithmetic, Exponent (Arity 3) (Arity 3)),
+                   ( RewriteCommutative,
+                     Exponent (Sum (Arity 2) (Arity 1)) (Arity 3)
+                   )
+                 ]
+          ]
 
 propertyExampleBoolBool :: Property
 propertyExampleBoolBool =
@@ -107,17 +122,17 @@ propertyExampleBoolBool =
 propertyExampleIdentity :: Property
 propertyExampleIdentity =
   withTests 1 . property $ do
-    let example = Forall "x" (Exponent (Var "x") (Var "x"))
+    let example = Forall ("x" :: String) (Exponent (Var "x") (Var "x"))
     algebraArity example === Just 1
 
 propertyExampleOne :: Property
 propertyExampleOne =
   withTests 1 . property $ do
-    let example = Forall "x" (Exponent (Product (Var "x") (Var "x")) (Var "x"))
+    let example = Forall ("x" :: String) (Exponent (Product (Var "x") (Var "x")) (Var "x"))
     algebraArity example === Just 1
 
 propertyExampleTwo :: Property
 propertyExampleTwo =
   withTests 1 . property $ do
-    let example = Forall "x" (Exponent (Sum (Var "x") (Var "x")) (Var "x"))
+    let example = Forall ("x" :: String) (Exponent (Sum (Var "x") (Var "x")) (Var "x"))
     algebraArity example === Just 2

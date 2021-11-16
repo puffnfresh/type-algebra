@@ -41,6 +41,7 @@ import qualified Data.List.NonEmpty as NEL
 import qualified Data.Map as M
 import Data.Maybe (listToMaybe)
 import Data.Monoid (Sum)
+import qualified Data.Set as Set
 import Data.Tree (Tree (Node, rootLabel, subForest))
 
 newtype Rule f a
@@ -63,12 +64,14 @@ runRulePlated (Rule f) =
             fmap (,1) (toList as)
        in WriterT ((a, 0 :: Sum Int) : as')
 
-buildRewriteForest :: (Plated a, Foldable f, Foldable g) => f (l, Rule g a) -> a -> [Tree (l, a)]
+buildRewriteForest :: (Plated a, Foldable f, Foldable g, Ord a) => f (l, Rule g a) -> a -> [Tree (l, a)]
 buildRewriteForest rules =
-  forest
+  forest Set.empty
   where
-    forest a =
-      foldMap (\(l, r) -> foldMap (\b -> [Node (l, b) (forest b)]) (runRulePlated r a)) rules
+    forest seen a =
+      if Set.member a seen
+        then []
+        else foldMap (\(l, r) -> foldMap (\b -> [Node (l, b) (forest (Set.insert a seen) b)]) (runRulePlated r a)) rules
 
 -- | Breadth-first collecting of nodes, with their paths.
 forestPaths :: [Tree a] -> [NonEmpty a]
