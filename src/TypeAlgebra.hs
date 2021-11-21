@@ -4,7 +4,6 @@ module TypeAlgebra
   ( Rule (..),
     runRule,
     runRulePlated,
-    buildRewriteForest,
     forestPaths,
     Algebra (..),
     (->>),
@@ -25,24 +24,28 @@ module TypeAlgebra
     yonedaContravariant,
     introduceArity,
     removeForall,
+    mathjaxSolution,
     prettySolution,
     prettyPrec,
   )
 where
 
 import Control.Applicative (Applicative (liftA2), (<|>))
-import Control.Lens.Plated (Plated (plate), transformM)
+import Control.Lens.Plated (Plated (plate), rewriteM, transformM)
 import Control.Monad ((>=>))
+import Control.Monad.Trans.State (execState, modify)
 import Control.Monad.Trans.Writer (WriterT (WriterT, runWriterT))
 import Control.Monad.Zip (mzip)
 import Data.Foldable (asum, toList)
+import Data.Functor (($>))
+import Data.List (intersperse, sortBy)
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty as NEL
 import qualified Data.Map as M
 import Data.Maybe (listToMaybe)
 import Data.Monoid (Sum)
+import Data.Ord (comparing)
 import qualified Data.Set as Set
-import Data.Tree (Tree (Node, rootLabel, subForest))
 
 newtype Rule f a
   = Rule (a -> f a)
@@ -64,26 +67,49 @@ runRulePlated (Rule f) =
             fmap (,1) (toList as)
        in WriterT ((a, 0 :: Sum Int) : as')
 
-buildRewriteForest :: (Plated a, Foldable f, Foldable g, Ord a) => f (l, Rule g a) -> a -> [Tree (l, a)]
-buildRewriteForest rules =
-  forest Set.empty
+algebraCost ::
+  Algebra x ->
+  Int
+algebraCost =
+  flip execState 0 . rewriteM (\a -> modify (+ f a) $> Nothing)
   where
-    forest seen a =
-      if Set.member a seen
-        then []
-        else foldMap (\(l, r) -> foldMap (\b -> [Node (l, b) (forest (Set.insert a seen) b)]) (runRulePlated r a)) rules
+    f (Forall _ _) =
+      20
+    f (Exponent _ _) =
+      10
+    f _ =
+      5
+
+pathCost ::
+  NonEmpty (a, Algebra x) ->
+  Int
+pathCost xs =
+  length xs + algebraCost (snd (NEL.head xs))
 
 -- | Breadth-first collecting of nodes, with their paths.
-forestPaths :: [Tree a] -> [NonEmpty a]
-forestPaths =
-  go []
+forestPaths :: (Plated a, Foldable f, Foldable g, Ord a) => f (l, Rule g a) -> (NonEmpty (l, a) -> Int) -> a -> [NonEmpty (l, a)]
+forestPaths rs cost query =
+  go (Set.singleton query) (runRules query [])
   where
-    go path ts =
-      foldMap (parent path) ts <> foldMap (children path) ts
-    parent path =
-      (: []) . flip (:|) path . rootLabel
-    children parentPath node =
-      go (rootLabel node : parentPath) (subForest node)
+    go seen ((_, a) : as) =
+      let (_, h) =
+            NEL.head a
+          a' =
+            runRules h (toList a)
+          seen' =
+            Set.insert h seen
+       in if Set.member h seen
+            then go seen as
+            else
+              if null a'
+                then a : go seen' as
+                else go seen' (sortBy (comparing fst) (a' <> as))
+    go _ [] =
+      []
+    runRules h t =
+      (\a -> (cost a, a)) <$> foldMap (run h t) (toList rs)
+    run h t (l, r) =
+      (\a' -> (l, a') :| t) <$> runRulePlated r h
 
 algebraSolutions :: Ord x => Algebra x -> [NEL.NonEmpty (RewriteLabel, Algebra x)]
 algebraSolutions =
@@ -94,8 +120,7 @@ algebraSolutions =
             _ -> False
         )
     )
-    . forestPaths
-    . buildRewriteForest rules
+    . forestPaths rules pathCost
 
 algebraArity :: Ord x => Algebra x -> Maybe Int
 algebraArity =
@@ -219,32 +244,53 @@ data RewriteLabel
   = RewriteArithmetic
   | RewriteCurrySum
   | RewriteCurryProduct
+  | RewriteUncurryProduct
   | RewriteAssociative
   | RewriteCommutative
   | RewriteDistributive
   | RewriteYonedaCovariant
   | RewriteYonedaContravariant
   | RewriteIntroduceArity
+  | RewriteMoveForall
   | RewriteRemoveForall
   deriving (Eq, Ord, Show)
 
-rules :: Ord x => [(RewriteLabel, Rule Maybe (Algebra x))]
+rules :: Ord x => [(RewriteLabel, Rule [] (Algebra x))]
 rules =
-  [ (RewriteIntroduceArity, Rule introduceArity),
-    (RewriteYonedaCovariant, Rule yonedaCovariant),
-    (RewriteYonedaContravariant, Rule yonedaContravariant),
-    (RewriteRemoveForall, Rule removeForall),
-    (RewriteArithmetic, Rule arithmetic),
-    (RewriteCurrySum, Rule currySum),
-    (RewriteCurryProduct, Rule curryProduct),
-    (RewriteAssociative, Rule associative),
-    (RewriteDistributive, Rule distributive),
-    (RewriteCommutative, Rule commutative)
+  [ (RewriteYonedaCovariant, rule yonedaCovariant),
+    (RewriteYonedaContravariant, rule yonedaContravariant),
+    (RewriteMoveForall, rule moveForall),
+    (RewriteRemoveForall, rule removeForall),
+    (RewriteArithmetic, rule arithmetic),
+    (RewriteCurrySum, rule currySum),
+    (RewriteCurryProduct, rule curryProduct),
+    (RewriteUncurryProduct, rule uncurryProduct),
+    (RewriteAssociative, rule associative),
+    (RewriteDistributive, rule distributive),
+    (RewriteCommutative, rule commutative),
+    (RewriteIntroduceArity, Rule introduceArity)
   ]
+  where
+    rule f =
+      Rule (toList . f)
 
 arithmetic ::
   Algebra x ->
-  Maybe (Algebra y)
+  Maybe (Algebra x)
+arithmetic (Sum a (Arity 0)) =
+  Just a
+arithmetic (Sum (Arity 0) a) =
+  Just a
+arithmetic (Product (Arity 0) _) =
+  Just (Arity 0)
+arithmetic (Product _ (Arity 0)) =
+  Just (Arity 0)
+arithmetic (Product a (Arity 1)) =
+  Just a
+arithmetic (Product (Arity 1) a) =
+  Just a
+arithmetic (Exponent a (Arity 1)) =
+  Just a
 arithmetic (Exponent (Arity a) (Arity b)) =
   Just (Arity (a ^ b))
 arithmetic (Product (Arity a) (Arity b)) =
@@ -259,8 +305,8 @@ yonedaCovariant ::
   Ord x =>
   Algebra x ->
   Maybe (Algebra x)
-yonedaCovariant (Exponent fx (Exponent (Var x) a)) =
-  yoneda fx a x Covariant
+yonedaCovariant (Forall x (Exponent fx (Exponent (Var y) a))) =
+  if x == y then yoneda fx a x Covariant else Nothing
 yonedaCovariant _ =
   Nothing
 
@@ -269,8 +315,8 @@ yonedaContravariant ::
   Ord x =>
   Algebra x ->
   Maybe (Algebra x)
-yonedaContravariant (Exponent fx (Exponent a (Var x))) =
-  yoneda fx a x Contravariant
+yonedaContravariant (Forall x (Exponent fx (Exponent a (Var y)))) =
+  if x == y then yoneda fx a x Contravariant else Nothing
 yonedaContravariant _ =
   Nothing
 
@@ -323,6 +369,8 @@ associative (Product (Product a b) c) =
   Just (Product a (Product b c))
 associative (Sum (Sum a b) c) =
   Just (Sum a (Sum b c))
+associative (Sum a (Sum b c)) =
+  Just (Sum (Sum a b) c)
 associative _ =
   Nothing
 
@@ -333,14 +381,12 @@ associative _ =
 distributive ::
   Algebra x ->
   Maybe (Algebra x)
+distributive (Forall x (Product a b)) =
+  Just (Product (Forall x a) (Forall x b))
 distributive (Product (Sum a b) c) =
   Just (Sum (Product a c) (Product b c))
 distributive (Product a (Sum b c)) =
   Just (Sum (Product a b) (Product a c))
-distributive (Exponent a (Sum b c)) =
-  Just (Product (Exponent a b) (Exponent a c))
-distributive (Exponent (Product a b) c) =
-  Just (Product (Exponent a c) (Exponent b c))
 distributive _ =
   Nothing
 
@@ -353,8 +399,18 @@ curryProduct (Exponent c (Product a b)) =
 curryProduct _ =
   Nothing
 
+-- | a -> b -> c ~ (a, b) -> c
+uncurryProduct ::
+  Algebra x ->
+  Maybe (Algebra x)
+uncurryProduct (Exponent (Exponent c b) a) =
+  Just (Exponent c (Product a b))
+uncurryProduct _ =
+  Nothing
+
 -- | Either a b -> c ~ (a -> c, b -> c)
 currySum ::
+  Eq x =>
   Algebra x ->
   Maybe (Algebra x)
 currySum (Exponent c (Sum a b)) =
@@ -364,17 +420,34 @@ currySum _ =
 
 -- | (a * a) -> b ~ (2 -> a) -> b
 -- | a -> b ~ (1 -> a) -> b
+-- | a -> b ~ (0 -> a) -> b
 introduceArity ::
   Eq x =>
   Algebra x ->
-  Maybe (Algebra x)
-introduceArity (Exponent c (Product (Var a) (Var b))) =
-  if a == b
-    then Just (Exponent c (Exponent (Var a) (Arity 2)))
-    else Nothing
+  [Algebra x]
 introduceArity (Exponent b (Var a)) =
-  Just (Exponent b (Exponent (Var a) (Arity 1)))
+  [ Exponent b (Exponent (Var a) (Arity 1))
+  ]
+introduceArity (Forall _ (Exponent _ (Exponent (Arity 1) _))) =
+  []
+introduceArity (Forall _ (Exponent _ (Exponent _ (Arity 0)))) =
+  []
+introduceArity (Forall x a) =
+  [ Forall x (Exponent a (Exponent (Arity 1) (Var x))),
+    Forall x (Exponent a (Exponent (Var x) (Arity 0)))
+  ]
 introduceArity _ =
+  []
+
+moveForall ::
+  Ord x =>
+  Algebra x ->
+  Maybe (Algebra x)
+moveForall (Forall x (Exponent a b)) =
+  if M.member x (variance b)
+    then Nothing
+    else Just (Exponent (Forall x a) b)
+moveForall _ =
   Nothing
 
 removeForall ::
@@ -388,33 +461,67 @@ removeForall (Forall x a) =
 removeForall _ =
   Nothing
 
+rewriteLabel :: RewriteLabel -> String
+rewriteLabel RewriteArithmetic =
+  "arithmetic"
+rewriteLabel RewriteAssociative =
+  "associative"
+rewriteLabel RewriteCommutative =
+  "commutative"
+rewriteLabel RewriteCurryProduct =
+  "curry product"
+rewriteLabel RewriteUncurryProduct =
+  "uncurry product"
+rewriteLabel RewriteCurrySum =
+  "curry sum"
+rewriteLabel RewriteYonedaContravariant =
+  "contravariant yoneda lemma"
+rewriteLabel RewriteYonedaCovariant =
+  "covariant yoneda lemma"
+rewriteLabel RewriteDistributive =
+  "distributive"
+rewriteLabel RewriteIntroduceArity =
+  "introduce arity"
+rewriteLabel RewriteMoveForall =
+  "move forall"
+rewriteLabel RewriteRemoveForall =
+  "remove forall"
+
+mathjaxSolution :: Algebra String -> NEL.NonEmpty (RewriteLabel, Algebra String) -> String
+mathjaxSolution x xs =
+  unlines
+    ( "\\begin{align*}" :
+      intersperse "\\\\" (prettyPrec' (0 :: Int) x (" " <> prettyJustified x') : fmap prettyJustified xs')
+        <> [ "\\end{align*}"
+           ]
+    )
+  where
+    (x' :| xs') =
+      NEL.reverse xs
+
+    prettyPrec' _ (Arity n) =
+      shows n
+    prettyPrec' p (Sum a b) =
+      showParen (p > 2) (prettyPrec' 2 a . showString " + " . prettyPrec' 2 b)
+    prettyPrec' p (Product a b) =
+      showParen (p > 3) (prettyPrec' 3 a . showString " * " . prettyPrec' 3 b)
+    prettyPrec' p (Exponent a b) =
+      showParen (p >= 4) (prettyPrec' 4 b . showString " \\rightarrow " . prettyPrec' 4 a)
+    prettyPrec' _ (Var y) =
+      showString y
+    prettyPrec' p (Forall y a) =
+      showParen (p > 1) (showString "\\forall " . showString y . showString ". " . prettyPrec' 1 a)
+
+    prettyJustified (l, a) =
+      "&= " <> prettyPrec' (0 :: Int) a (" && \\text{(" <> rewriteLabel l <> ")}")
+
 prettySolution :: Algebra String -> NEL.NonEmpty (RewriteLabel, Algebra String) -> String
 prettySolution x xs =
   unlines
     (prettyPrec 0 x "" : reverse (toList (fmap f xs)))
   where
     f (t, a) =
-      "= " <> prettyPrec 0 a ("\t-- via " <> l t)
-    l RewriteArithmetic =
-      "arithmetic"
-    l RewriteAssociative =
-      "associative"
-    l RewriteCommutative =
-      "commutative"
-    l RewriteCurryProduct =
-      "curry product"
-    l RewriteCurrySum =
-      "curry sum"
-    l RewriteYonedaContravariant =
-      "contravariant yoneda lemma"
-    l RewriteYonedaCovariant =
-      "covariant yoneda lemma"
-    l RewriteDistributive =
-      "distributive"
-    l RewriteIntroduceArity =
-      "introduce arity"
-    l RewriteRemoveForall =
-      "remove forall"
+      "= " <> prettyPrec 0 a ("\t-- via " <> rewriteLabel t)
 
 prettyPrec ::
   Int ->
@@ -423,12 +530,12 @@ prettyPrec ::
 prettyPrec _ (Arity n) =
   shows n
 prettyPrec p (Sum a b) =
-  showParen (p > 2) (prettyPrec 2 a . showString " + " . prettyPrec 2 b)
+  showParen (p > 3) (prettyPrec 3 a . showString " + " . prettyPrec 3 b)
 prettyPrec p (Product a b) =
-  showParen (p > 3) (prettyPrec 3 a . showString " * " . prettyPrec 3 b)
+  showParen (p > 4) (prettyPrec 4 a . showString " * " . prettyPrec 4 b)
 prettyPrec p (Exponent a b) =
   -- showParen (p >= 4) (prettyPrec 4 a . showString " ^ " . prettyPrec 4 b)
-  showParen (p >= 4) (prettyPrec 4 b . showString " -> " . prettyPrec 4 a)
+  showParen (p > 2) (prettyPrec 3 b . showString " -> " . prettyPrec 2 a)
 prettyPrec _ (Var x) =
   showString x
 prettyPrec p (Forall x a) =
