@@ -13,6 +13,10 @@ library
                      , lens
                      , transformers
   exposed-modules:     TypeAlgebra
+                     , TypeAlgebra.Algebra
+                     , TypeAlgebra.Rewrites
+                     , TypeAlgebra.Rules
+                     , TypeAlgebra.Pretty
   hs-source-dirs:      src
   default-language:    Haskell2010
 

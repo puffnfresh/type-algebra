@@ -7,21 +7,27 @@ import qualified Data.Map as M
 import Hedgehog (Gen, Group (..), Property, checkParallel, forAll, property, withTests, (===))
 import Hedgehog.Gen (element, unicodeAll)
 import Hedgehog.Main (defaultMain)
-import TypeAlgebra (Algebra (..), RewriteLabel (RewriteArithmetic), Variance (..), algebraArity, algebraSolutions, variance)
+import TypeAlgebra (Algebra (..), Variance (..), algebraArity, algebraSolutions, variance)
+import TypeAlgebra.Rules (RewriteLabel (RewriteArithmetic))
 
 main :: IO ()
 main =
   defaultMain
     [ checkParallel
         ( Group
-            "TypeAlgebra"
-            [ ("Variance semigroup laws", propertyVarianceSemigroup),
+            "TypeAlgebra.Algebra"
+            [ ("variance semigroup laws", propertyVarianceSemigroup),
               ("variance singleton", propertyVarianceSingleton),
               ("variance invariant", propertyVarianceInvariant),
               ("variance negative", propertyVarianceNegative),
               ("variance forall", propertyVarianceForall),
-              ("variance equivalence", propertyVarianceEquivalence),
-              ("no repetitive rewrites in solutions", propertyRemoveDuplicates),
+              ("variance equivalence", propertyVarianceEquivalence)
+            ]
+        ),
+      checkParallel
+        ( Group
+            "TypeAlgebra"
+            [ ("no repetitive rewrites in solutions", propertyRemoveDuplicates),
               ("2 -> 2", propertyExampleBoolBool),
               ("∀ a. ∀ b. (a -> b) -> (a + 1) -> (b + 1)", propertyExampleMapMaybe),
               ("∀ x. x -> x", propertyExampleIdentity),
