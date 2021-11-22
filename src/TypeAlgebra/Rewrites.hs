@@ -170,6 +170,9 @@ introduceArity ::
   Eq x =>
   Algebra x ->
   [Algebra x]
+introduceArity (Exponent c (Product (Var a) (Var b))) =
+  [ Exponent c (Exponent (Var a) (Arity 2)) | a == b
+  ]
 introduceArity (Exponent b (Var a)) =
   [ Exponent b (Exponent (Var a) (Arity 1))
   ]

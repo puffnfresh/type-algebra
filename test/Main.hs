@@ -27,12 +27,14 @@ main =
       checkParallel
         ( Group
             "TypeAlgebra"
-            [ ("no repetitive rewrites in solutions", propertyRemoveDuplicates),
+            [ ("no repetitive rewrites in solution", propertyRemoveDuplicates),
               ("2 -> 2", propertyExampleBoolBool),
               ("∀ a. ∀ b. (a -> b) -> (a + 1) -> (b + 1)", propertyExampleMapMaybe),
               ("∀ x. x -> x", propertyExampleIdentity),
               ("∀ x. x -> (x * x)", propertyExampleOne),
-              ("∀ x. x -> (x + x)", propertyExampleTwo)
+              ("∀ x. x -> (x + x)", propertyExampleTwo),
+              ("∀ x. (x, x) -> (x, x)", propertyExamplePair),
+              ("∀ a b c. (a -> b) -> (b -> c) -> a -> c", propertyExampleCompose)
             ]
         )
     ]
@@ -105,6 +107,31 @@ propertyExampleBoolBool =
   withTests 1 . property $ do
     let example = Exponent (Arity 2) (Arity 2) :: Algebra ()
     algebraArity example === Just 4
+
+propertyExamplePair :: Property
+propertyExamplePair =
+  withTests 1 . property $ do
+    let example =
+          Forall
+            ("a" :: String)
+            (Exponent (Product (Var "a") (Var "a")) (Product (Var "a") (Var "a")))
+    algebraArity example === Just 4
+
+propertyExampleCompose :: Property
+propertyExampleCompose =
+  withTests 1 . property $ do
+    let example =
+          Forall
+            ("a" :: String)
+            ( Forall
+                "b"
+                ( Forall
+                    "c"
+                    ( (Exponent (Exponent (Exponent (Var "c") (Var "a")) (Exponent (Var "c") (Var "b"))) (Exponent (Var "b") (Var "a")))
+                    )
+                )
+            )
+    algebraArity example === Just 1
 
 propertyExampleMapMaybe :: Property
 propertyExampleMapMaybe =
