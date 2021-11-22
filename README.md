@@ -1,5 +1,7 @@
 # Type Algebra
 
+Largely based on Alex's work on [Counting type inhabitants](https://alexknvl.com/posts/counting-type-inhabitants.html).
+
 We can perform algebra on types. For example, given a polymorphic type:
 
 ```
