@@ -195,6 +195,8 @@ moveForall (Forall x (Exponent a b)) =
   if M.member x (variance b)
     then Nothing
     else Just (Exponent (Forall x a) b)
+moveForall (Forall x (Forall y a)) =
+  Just (Forall y (Forall x a))
 moveForall _ =
   Nothing
 
