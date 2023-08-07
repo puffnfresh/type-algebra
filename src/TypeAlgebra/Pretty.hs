@@ -81,11 +81,10 @@ prettyPrec ::
 prettyPrec _ (Arity n) =
   shows n
 prettyPrec p (Sum a b) =
-  showParen (p > 3) (prettyPrec 3 a . showString " + " . prettyPrec 3 b)
+  showParen (p > 3) (prettyPrec 4 a . showString " + " . prettyPrec 4 b)
 prettyPrec p (Product a b) =
-  showParen (p > 4) (prettyPrec 4 a . showString " * " . prettyPrec 4 b)
+  showParen (p > 4) (prettyPrec 5 a . showString " * " . prettyPrec 5 b)
 prettyPrec p (Exponent a b) =
-  -- showParen (p >= 4) (prettyPrec 4 a . showString " ^ " . prettyPrec 4 b)
   showParen (p > 2) (prettyPrec 3 b . showString " -> " . prettyPrec 2 a)
 prettyPrec _ (Var x) =
   showString x
