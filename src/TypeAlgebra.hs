@@ -71,7 +71,7 @@ algebraSearch rs cost query =
             then a : go seen' as
             else
               if Set.member h seen
-                then go seen as
+                then a : go seen as
                 else go seen' (sortBy (comparing fst) (a' <> as))
     go _ [] =
       []
