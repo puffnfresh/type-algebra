@@ -43,7 +43,7 @@ ruleCost ::
   RewriteLabel ->
   Sum Int
 ruleCost RewriteCommutative =
-  2
+  30
 ruleCost _ =
   1
 
