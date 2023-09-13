@@ -34,6 +34,8 @@ arithmetic (Product a (Arity 1)) =
   Just a
 arithmetic (Product (Arity 1) a) =
   Just a
+arithmetic (Exponent a (Arity 0)) =
+  Just (Arity 1)
 arithmetic (Exponent a (Arity 1)) =
   Just a
 arithmetic (Exponent (Arity a) (Arity b)) =
