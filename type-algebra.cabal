@@ -9,9 +9,9 @@ extra-source-files:  CHANGELOG.md
 
 library
   build-depends:       base >=4.13 && <4.19
-                     , containers
-                     , lens
-                     , transformers
+                     , containers >=0.6 && <0.7
+                     , lens >=4.16 && <5.3
+                     , transformers >=0.5.4 && <0.7
   exposed-modules:     TypeAlgebra
                      , TypeAlgebra.Algebra
                      , TypeAlgebra.Rewrites
@@ -24,7 +24,7 @@ test-suite type-algebra-tests
   build-depends:       type-algebra
                      , base
                      , containers
-                     , hedgehog
+                     , hedgehog >=0.6 && <1.5
   main-is:             Main.hs
   hs-source-dirs:      test
   default-language:    Haskell2010
