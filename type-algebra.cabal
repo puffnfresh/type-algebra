@@ -8,7 +8,7 @@ build-type:          Simple
 extra-source-files:  CHANGELOG.md
 
 library
-  build-depends:       base >=4.13 && <4.17
+  build-depends:       base >=4.13 && <4.19
                      , containers
                      , lens
                      , transformers
