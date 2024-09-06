@@ -7,7 +7,7 @@ import qualified Data.Map as M
 import Hedgehog (Gen, Group (..), Property, checkParallel, forAll, property, withTests, (===))
 import Hedgehog.Gen (element, unicodeAll)
 import Hedgehog.Main (defaultMain)
-import TypeAlgebra (Algebra (..), Variance (..), algebraArity, algebraSolutions, variance)
+import TypeAlgebra (Algebra (..), Cardinality (..), Variance (..), algebraCardinality, algebraSolutions, variance)
 import TypeAlgebra.Rules (RewriteLabel (RewriteArithmetic))
 
 main :: IO ()
@@ -34,7 +34,8 @@ main =
               ("∀ x. x -> (x * x)", propertyExampleOne),
               ("∀ x. x -> (x + x)", propertyExampleTwo),
               ("∀ x. (x, x) -> (x, x)", propertyExamplePair),
-              ("∀ a b c. (a -> b) -> (b -> c) -> a -> c", propertyExampleCompose)
+              ("∀ a b c. (a -> b) -> (b -> c) -> a -> c", propertyExampleCompose),
+              ("∞ -> 2", propertyExampleInfiniteTwo)
             ]
         )
     ]
@@ -88,7 +89,7 @@ propertyVarianceEquivalence :: Property
 propertyVarianceEquivalence =
   property $ do
     name <- forAll unicodeAll
-    variance (Exponent (Exponent (Arity 2) (Var name)) (Var name))
+    variance (Exponent (Exponent (Cardinality (Finite 2)) (Var name)) (Var name))
       === M.fromList
         [ (name, Contravariant)
         ]
@@ -96,17 +97,17 @@ propertyVarianceEquivalence =
 propertyRemoveDuplicates :: Property
 propertyRemoveDuplicates =
   withTests 1 . property $ do
-    let example = Exponent (Sum (Arity 1) (Arity 2)) (Arity 3) :: Algebra ()
+    let example = Exponent (Sum (Cardinality (Finite 1)) (Cardinality (Finite 2))) (Cardinality (Finite 3)) :: Algebra ()
     algebraSolutions example
-      === [ (RewriteArithmetic, Arity 27)
-              :| [(RewriteArithmetic, Exponent (Arity 3) (Arity 3))]
+      === [ (RewriteArithmetic, Cardinality (Finite 27))
+              :| [(RewriteArithmetic, Exponent (Cardinality (Finite 3)) (Cardinality (Finite 3)))]
           ]
 
 propertyExampleBoolBool :: Property
 propertyExampleBoolBool =
   withTests 1 . property $ do
-    let example = Exponent (Arity 2) (Arity 2) :: Algebra ()
-    algebraArity example === Just 4
+    let example = Exponent (Cardinality (Finite 2)) (Cardinality (Finite 2)) :: Algebra ()
+    algebraCardinality example === Just (Finite 4)
 
 propertyExamplePair :: Property
 propertyExamplePair =
@@ -115,7 +116,7 @@ propertyExamplePair =
           Forall
             ("a" :: String)
             (Exponent (Product (Var "a") (Var "a")) (Product (Var "a") (Var "a")))
-    algebraArity example === Just 4
+    algebraCardinality example === Just (Finite 4)
 
 propertyExampleCompose :: Property
 propertyExampleCompose =
@@ -131,7 +132,7 @@ propertyExampleCompose =
                     )
                 )
             )
-    algebraArity example === Just 1
+    algebraCardinality example === Just (Finite 1)
 
 propertyExampleMapMaybe :: Property
 propertyExampleMapMaybe =
@@ -142,26 +143,32 @@ propertyExampleMapMaybe =
             ( Forall
                 "b"
                 ( Exponent
-                    (Exponent (Sum (Var "a") (Arity 1)) (Sum (Var "b") (Arity 1)))
+                    (Exponent (Sum (Var "a") (Cardinality (Finite 1))) (Sum (Var "b") (Cardinality (Finite 1))))
                     (Exponent (Var "a") (Var "b"))
                 )
             )
-    algebraArity example === Just 2
+    algebraCardinality example === Just (Finite 2)
 
 propertyExampleIdentity :: Property
 propertyExampleIdentity =
   withTests 1 . property $ do
     let example = Forall ("x" :: String) (Exponent (Var "x") (Var "x"))
-    algebraArity example === Just 1
+    algebraCardinality example === Just (Finite 1)
 
 propertyExampleOne :: Property
 propertyExampleOne =
   withTests 1 . property $ do
     let example = Forall ("x" :: String) (Exponent (Product (Var "x") (Var "x")) (Var "x"))
-    algebraArity example === Just 1
+    algebraCardinality example === Just (Finite 1)
 
 propertyExampleTwo :: Property
 propertyExampleTwo =
   withTests 1 . property $ do
     let example = Forall ("x" :: String) (Exponent (Sum (Var "x") (Var "x")) (Var "x"))
-    algebraArity example === Just 2
+    algebraCardinality example === Just (Finite 2)
+
+propertyExampleInfiniteTwo :: Property
+propertyExampleInfiniteTwo =
+  withTests 1 . property $ do
+    let example = Forall ("x" :: String) (Exponent (Exponent (Sum (Var "x") (Var "x")) (Var "x")) (Cardinality Infinite))
+    algebraCardinality example === Just Infinite
