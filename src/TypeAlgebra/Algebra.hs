@@ -1,5 +1,6 @@
 module TypeAlgebra.Algebra
-  ( Algebra (..),
+  ( Cardinality (..),
+    Algebra (..),
     subst,
     (->>),
     Variance (..),
@@ -11,9 +12,14 @@ import Control.Applicative (liftA2)
 import Control.Lens (Plated (plate))
 import qualified Data.Map as M
 
+data Cardinality
+  = Infinite
+  | Finite Word
+  deriving (Eq, Ord, Show)
+
 -- | Polynomials, without subtraction, with explicit quantification.
 data Algebra x
-  = Arity Int
+  = Cardinality Cardinality
   | Sum (Algebra x) (Algebra x)
   | Product (Algebra x) (Algebra x)
   | Exponent (Algebra x) (Algebra x)
@@ -22,8 +28,8 @@ data Algebra x
   deriving (Eq, Ord, Show)
 
 instance Functor Algebra where
-  fmap _ (Arity n) =
-    Arity n
+  fmap _ (Cardinality n) =
+    Cardinality n
   fmap f (Sum a b) =
     Sum (fmap f a) (fmap f b)
   fmap f (Product a b) =
@@ -36,8 +42,8 @@ instance Functor Algebra where
     Var (f a)
 
 instance Plated (Algebra e) where
-  plate _ (Arity a) =
-    pure (Arity a)
+  plate _ (Cardinality a) =
+    pure (Cardinality a)
   plate f (Sum a b) =
     liftA2 Sum (f a) (f b)
   plate f (Product a b) =
@@ -59,8 +65,8 @@ subst x a (Var y) =
   if x == y
     then a
     else Var y
-subst _ _ (Arity n) =
-  Arity n
+subst _ _ (Cardinality n) =
+  Cardinality n
 subst x a (Sum b c) =
   Sum (subst x a b) (subst x a c)
 subst x a (Product b c) =
@@ -107,7 +113,7 @@ variance ::
   Ord x =>
   Algebra x ->
   M.Map x Variance
-variance (Arity _) =
+variance (Cardinality _) =
   mempty
 variance (Sum a b) =
   M.unionWith (<>) (variance a) (variance b)

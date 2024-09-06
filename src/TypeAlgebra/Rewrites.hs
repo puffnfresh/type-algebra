@@ -5,7 +5,7 @@ module TypeAlgebra.Rewrites
     curryProduct,
     currySum,
     distributive,
-    introduceArity,
+    introduceCardinality,
     moveForall,
     removeForall,
     uncurryProduct,
@@ -17,33 +17,45 @@ where
 import Control.Applicative ((<|>))
 import Control.Monad.Zip (mzip)
 import qualified Data.Map as M
-import TypeAlgebra.Algebra (Algebra (..), Variance (..), subst, variance)
+import TypeAlgebra.Algebra (Algebra (..), Cardinality (..), Variance (..), subst, variance)
 
 arithmetic ::
   Algebra x ->
   Maybe (Algebra x)
-arithmetic (Sum a (Arity 0)) =
+arithmetic (Sum a (Cardinality Infinite)) =
+  Just (Cardinality Infinite)
+arithmetic (Sum (Cardinality Infinite) a) =
+  Just (Cardinality Infinite)
+arithmetic (Sum a (Cardinality (Finite  0))) =
   Just a
-arithmetic (Sum (Arity 0) a) =
+arithmetic (Sum (Cardinality (Finite 0)) a) =
   Just a
-arithmetic (Product (Arity 0) _) =
-  Just (Arity 0)
-arithmetic (Product _ (Arity 0)) =
-  Just (Arity 0)
-arithmetic (Product a (Arity 1)) =
+arithmetic (Product (Cardinality (Finite 0)) _) =
+  Just (Cardinality (Finite 0))
+arithmetic (Product _ (Cardinality (Finite 0))) =
+  Just (Cardinality (Finite 0))
+arithmetic (Product a (Cardinality (Finite 1))) =
   Just a
-arithmetic (Product (Arity 1) a) =
+arithmetic (Product (Cardinality (Finite 1)) a) =
   Just a
-arithmetic (Exponent a (Arity 0)) =
-  Just (Arity 1)
-arithmetic (Exponent a (Arity 1)) =
+arithmetic (Product _ (Cardinality Infinite)) =
+  Just (Cardinality Infinite)
+arithmetic (Product (Cardinality Infinite) _) =
+  Just (Cardinality Infinite)
+arithmetic (Exponent _ (Cardinality (Finite 0))) =
+  Just (Cardinality (Finite 1))
+arithmetic (Exponent a (Cardinality (Finite 1))) =
   Just a
-arithmetic (Exponent (Arity a) (Arity b)) =
-  Just (Arity (a ^ b))
-arithmetic (Product (Arity a) (Arity b)) =
-  Just (Arity (a * b))
-arithmetic (Sum (Arity a) (Arity b)) =
-  Just (Arity (a + b))
+arithmetic (Exponent (Cardinality Infinite) _) =
+  Just (Cardinality Infinite)
+arithmetic (Exponent _ (Cardinality Infinite)) =
+  Just (Cardinality Infinite)
+arithmetic (Exponent (Cardinality (Finite a)) (Cardinality (Finite b))) =
+  Just (Cardinality (Finite (a ^ b)))
+arithmetic (Product (Cardinality (Finite a)) (Cardinality (Finite b))) =
+  Just (Cardinality (Finite (a * b)))
+arithmetic (Sum (Cardinality (Finite a)) (Cardinality (Finite b))) =
+  Just (Cardinality (Finite (a + b)))
 arithmetic _ =
   Nothing
 
@@ -168,25 +180,25 @@ currySum _ =
 -- | (a * a) -> b ~ (2 -> a) -> b
 -- | a -> b ~ (1 -> a) -> b
 -- | a -> b ~ (0 -> a) -> b
-introduceArity ::
+introduceCardinality ::
   Eq x =>
   Algebra x ->
   [Algebra x]
-introduceArity (Exponent c (Product (Var a) (Var b))) =
-  [ Exponent c (Exponent (Var a) (Arity 2)) | a == b
+introduceCardinality (Exponent c (Product (Var a) (Var b))) =
+  [ Exponent c (Exponent (Var a) (Cardinality (Finite 2))) | a == b
   ]
-introduceArity (Exponent b (Var a)) =
-  [ Exponent b (Exponent (Var a) (Arity 1))
+introduceCardinality (Exponent b (Var a)) =
+  [ Exponent b (Exponent (Var a) (Cardinality (Finite 1)))
   ]
-introduceArity (Forall _ (Exponent _ (Exponent (Arity 1) _))) =
+introduceCardinality (Forall _ (Exponent _ (Exponent (Cardinality (Finite 1)) _))) =
   []
-introduceArity (Forall _ (Exponent _ (Exponent _ (Arity 0)))) =
+introduceCardinality (Forall _ (Exponent _ (Exponent _ (Cardinality (Finite 0))))) =
   []
-introduceArity (Forall x a) =
-  [ Forall x (Exponent a (Exponent (Arity 1) (Var x))),
-    Forall x (Exponent a (Exponent (Var x) (Arity 0)))
+introduceCardinality (Forall x a) =
+  [ Forall x (Exponent a (Exponent (Cardinality (Finite 1)) (Var x))),
+    Forall x (Exponent a (Exponent (Var x) (Cardinality (Finite 0))))
   ]
-introduceArity _ =
+introduceCardinality _ =
   []
 
 moveForall ::

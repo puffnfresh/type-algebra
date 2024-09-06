@@ -9,7 +9,7 @@ where
 import Data.List (intersperse)
 import Data.List.NonEmpty (NonEmpty ((:|)), toList)
 import qualified Data.List.NonEmpty as NEL
-import TypeAlgebra.Algebra (Algebra (..))
+import TypeAlgebra.Algebra (Algebra (..), Cardinality (..))
 import TypeAlgebra.Rules (RewriteLabel (..))
 
 rewriteLabel ::
@@ -33,8 +33,8 @@ rewriteLabel RewriteYonedaCovariant =
   "covariant yoneda lemma"
 rewriteLabel RewriteDistributive =
   "distributive"
-rewriteLabel RewriteIntroduceArity =
-  "introduce arity"
+rewriteLabel RewriteIntroduceCardinality =
+  "introduce cardinality"
 rewriteLabel RewriteMoveForall =
   "move forall"
 rewriteLabel RewriteRemoveForall =
@@ -55,8 +55,8 @@ mathjaxSolution x xs =
     (x' :| xs') =
       NEL.reverse xs
 
-    prettyPrec' _ (Arity n) =
-      shows n
+    prettyPrec' _ (Cardinality c) =
+      prettyCardinality c
     prettyPrec' p (Sum a b) =
       showParen (p > 2) (prettyPrec' 2 a . showString " + " . prettyPrec' 2 b)
     prettyPrec' p (Product a b) =
@@ -82,12 +82,20 @@ prettySolution x xs =
     f (t, a) =
       "= " <> prettyPrec 0 a ("\t-- via " <> rewriteLabel t)
 
+prettyCardinality ::
+  Cardinality ->
+  ShowS
+prettyCardinality Infinite =
+  showString "\\infty"
+prettyCardinality (Finite n) =
+  shows n
+
 prettyPrec ::
   Int ->
   Algebra String ->
   ShowS
-prettyPrec _ (Arity n) =
-  shows n
+prettyPrec _ (Cardinality c) =
+  prettyCardinality c
 prettyPrec p (Sum a b) =
   showParen (p > 3) (prettyPrec 4 a . showString " + " . prettyPrec 4 b)
 prettyPrec p (Product a b) =

@@ -20,7 +20,7 @@ import TypeAlgebra.Rewrites
     curryProduct,
     currySum,
     distributive,
-    introduceArity,
+    introduceCardinality,
     moveForall,
     removeForall,
     uncurryProduct,
@@ -58,7 +58,7 @@ data RewriteLabel
   | RewriteDistributive
   | RewriteYonedaCovariant
   | RewriteYonedaContravariant
-  | RewriteIntroduceArity
+  | RewriteIntroduceCardinality
   | RewriteMoveForall
   | RewriteRemoveForall
   deriving (Eq, Ord, Show)
@@ -78,7 +78,7 @@ rules =
     (RewriteAssociative, rule associative),
     (RewriteDistributive, rule distributive),
     (RewriteCommutative, rule commutative),
-    (RewriteIntroduceArity, Rule introduceArity)
+    (RewriteIntroduceCardinality, Rule introduceCardinality)
   ]
   where
     rule f =

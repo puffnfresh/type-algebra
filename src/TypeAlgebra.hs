@@ -5,7 +5,7 @@ module TypeAlgebra
     searchPathCost,
     algebraSearch,
     algebraSolutions,
-    algebraArity,
+    algebraCardinality,
   )
 where
 
@@ -21,7 +21,7 @@ import Data.Maybe (listToMaybe)
 import Data.Monoid (Sum)
 import Data.Ord (comparing)
 import qualified Data.Set as Set
-import TypeAlgebra.Algebra (Algebra (..), Variance (..), subst, variance)
+import TypeAlgebra.Algebra (Algebra (..), Cardinality (..), Variance (..), subst, variance)
 import TypeAlgebra.Rules (RewriteLabel (RewriteCommutative), Rule, rules, runRulePlated)
 
 -- Disincentivise quantification and functions.
@@ -93,20 +93,20 @@ algebraSolutions =
   filter
     ( \xs ->
         ( case NEL.head xs of
-            (_, Arity _) -> True
+            (_, Cardinality _) -> True
             _ -> False
         )
     )
     . algebraSearch rules searchPathCost
 
-algebraArity ::
+algebraCardinality ::
   Ord x =>
   Algebra x ->
-  Maybe Int
-algebraArity =
+  Maybe Cardinality
+algebraCardinality =
   listToMaybe . algebraSolutions >=> f . snd . NEL.head
   where
-    f (Arity n) =
+    f (Cardinality n) =
       Just n
     f _ =
       Nothing
