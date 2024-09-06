@@ -10,10 +10,10 @@ We can perform algebra on types. For example, given a polymorphic type:
 = ∀ a. (a -> a + 1) * (1 -> a + 1)      -- via curry sum
 = ∀ a. (a -> a + 1) * (a + 1)   -- via arithmetic
 = (∀ a. a -> a + 1) * (∀ a. a + 1)      -- via distributive
-= (∀ a. (1 -> a) -> a + 1) * (∀ a. a + 1)       -- via introduce arity
+= (∀ a. (1 -> a) -> a + 1) * (∀ a. a + 1)       -- via introduce cardinality
 = (1 + 1) * (∀ a. a + 1)        -- via covariant yoneda lemma
 = 2 * (∀ a. a + 1)      -- via arithmetic
-= 2 * (∀ a. (0 -> a) -> a + 1)  -- via introduce arity
+= 2 * (∀ a. (0 -> a) -> a + 1)  -- via introduce cardinality
 = 2 * (0 + 1)   -- via covariant yoneda lemma
 = 2 * 1 -- via arithmetic
 = 2     -- via arithmetic
@@ -27,8 +27,8 @@ x =
   Forall "a"
     (Forall "b"
       ( (Var "a" ->> Var "b") ->>
-        (Sum (Var "a") (Arity 1) ->>
-        Sum (Var "b") (Arity 1))))
+        (Sum (Var "a") (Cardinality (Finite 1)) ->>
+        Sum (Var "b") (Cardinality (Finite 1)))))
 
 traverse_ (putStrLn . prettySolution  x) (take 1 (algebraSolutions x))
 ```
