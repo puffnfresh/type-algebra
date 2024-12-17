@@ -56,7 +56,12 @@ searchPathCost xs =
 -- | Finds a solution by applying weighted rewrite rules.
 -- | Doesn't search from the same element twice.
 -- | Found element is returned with the successful path that the search took to get there.
-algebraSearch :: (Plated a, Foldable f, Foldable g, Ord a, Ord c) => f (l, Rule g a) -> (NonEmpty (l, a) -> c) -> a -> [NonEmpty (l, a)]
+algebraSearch ::
+  (Plated a, Foldable f, Foldable g, Ord a, Ord c) =>
+  f (l, Rule g a) ->
+  (NonEmpty (l, a) -> c) ->
+  a ->
+  [NonEmpty (l, a)]
 algebraSearch rs cost query =
   go (Set.singleton query) (runRules query [])
   where
@@ -80,7 +85,10 @@ algebraSearch rs cost query =
     run h t (l, r) =
       (\a' -> (l, a') :| t) <$> runRulePlated r h
 
-algebraSolutions :: Ord x => Algebra x -> [NEL.NonEmpty (RewriteLabel, Algebra x)]
+algebraSolutions ::
+  Ord x =>
+  Algebra x ->
+  [NEL.NonEmpty (RewriteLabel, Algebra x)]
 algebraSolutions =
   filter
     ( \xs ->
@@ -91,7 +99,10 @@ algebraSolutions =
     )
     . algebraSearch rules searchPathCost
 
-algebraArity :: Ord x => Algebra x -> Maybe Int
+algebraArity ::
+  Ord x =>
+  Algebra x ->
+  Maybe Int
 algebraArity =
   listToMaybe . algebraSolutions >=> f . snd . NEL.head
   where

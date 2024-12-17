@@ -12,7 +12,9 @@ import qualified Data.List.NonEmpty as NEL
 import TypeAlgebra.Algebra (Algebra (..))
 import TypeAlgebra.Rules (RewriteLabel (..))
 
-rewriteLabel :: RewriteLabel -> String
+rewriteLabel ::
+  RewriteLabel ->
+  String
 rewriteLabel RewriteArithmetic =
   "arithmetic"
 rewriteLabel RewriteAssociative =
@@ -38,7 +40,10 @@ rewriteLabel RewriteMoveForall =
 rewriteLabel RewriteRemoveForall =
   "remove forall"
 
-mathjaxSolution :: Algebra String -> NonEmpty (RewriteLabel, Algebra String) -> String
+mathjaxSolution ::
+  Algebra String ->
+  NonEmpty (RewriteLabel, Algebra String) ->
+  String
 mathjaxSolution x xs =
   unlines
     ( "\\begin{align*}" :
@@ -66,7 +71,10 @@ mathjaxSolution x xs =
     prettyJustified (l, a) =
       "&= " <> prettyPrec' (0 :: Int) a (" && \\text{(" <> rewriteLabel l <> ")}")
 
-prettySolution :: Algebra String -> NEL.NonEmpty (RewriteLabel, Algebra String) -> String
+prettySolution ::
+  Algebra String ->
+  NEL.NonEmpty (RewriteLabel, Algebra String) ->
+  String
 prettySolution x xs =
   unlines
     (prettyPrec 0 x "" : reverse (toList (fmap f xs)))

@@ -31,7 +31,11 @@ import TypeAlgebra.Rewrites
 newtype Rule f a
   = Rule (a -> f a)
 
-runRulePlated :: (Plated a, Foldable f) => Rule f a -> a -> [a]
+runRulePlated ::
+  (Plated a, Foldable f) =>
+  Rule f a ->
+  a ->
+  [a]
 runRulePlated (Rule f) =
   asum . fmap filterIdentity . runWriterT . transformM go
   where
@@ -59,7 +63,9 @@ data RewriteLabel
   | RewriteRemoveForall
   deriving (Eq, Ord, Show)
 
-rules :: Ord x => [(RewriteLabel, Rule [] (Algebra x))]
+rules ::
+  Ord x =>
+  [(RewriteLabel, Rule [] (Algebra x))]
 rules =
   [ (RewriteYonedaCovariant, rule yonedaCovariant),
     (RewriteYonedaContravariant, rule yonedaContravariant),
