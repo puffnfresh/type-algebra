@@ -103,8 +103,10 @@ algebraCardinality ::
   Ord x =>
   Algebra x ->
   Maybe Cardinality
-algebraCardinality =
-  listToMaybe . algebraSolutions >=> f . snd . NEL.head
+algebraCardinality (Cardinality c) =
+  Just c
+algebraCardinality a =
+  listToMaybe (algebraSolutions a) >>= f . snd . NEL.head
   where
     f (Cardinality n) =
       Just n
