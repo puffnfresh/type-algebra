@@ -9,20 +9,19 @@ module TypeAlgebra
   )
 where
 
-import Control.Lens.Plated (Plated, rewriteM)
-import Control.Monad ((>=>))
+import Control.Lens.Plated (Plated, rewrite, rewriteM)
 import Control.Monad.Trans.State (execState, modify)
 import Data.Foldable (toList)
 import Data.Functor (($>))
-import Data.List (sortBy)
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty as NEL
+import qualified Data.Map as M
 import Data.Maybe (listToMaybe)
 import Data.Monoid (Sum)
-import Data.Ord (comparing)
 import qualified Data.Set as Set
 import TypeAlgebra.Algebra (Algebra (..), Cardinality (..), Variance (..), subst, variance)
-import TypeAlgebra.Rules (RewriteLabel (RewriteCommutative), Rule, rules, runRulePlated)
+import TypeAlgebra.Rules (RewriteLabel (RewriteArithmetic, RewriteCommutative, RewriteIntroduceCardinality), Rule (..), rules, runRulePlated)
+import TypeAlgebra.Rewrites (arithmetic)
 
 -- Disincentivise quantification and functions.
 algebraCost ::
@@ -63,41 +62,74 @@ algebraSearch ::
   a ->
   [NonEmpty (l, a)]
 algebraSearch rs cost query =
-  go (Set.singleton query) (runRules query [])
+  go (Set.singleton query) (enqueue M.empty (runRules query []))
   where
-    go seen ((_, a) : as) =
-      let (_, h) =
-            NEL.head a
-          a' =
-            runRules h (toList a)
-          seen' =
-            Set.insert h seen
-       in if null a'
-            then a : go seen' as
-            else
-              if Set.member h seen
-                then a : go seen as
-                else go seen' (sortBy (comparing fst) (a' <> as))
-    go _ [] =
-      []
+    go seen frontier =
+      maybe [] (go' seen) (M.minViewWithKey frontier)
+    go' seen ((_, []), frontier') =
+      go seen frontier'
+    go' seen ((c, a : rest), frontier') =
+      let
+        frontier'' =
+          if null rest
+            then frontier'
+            else M.insert c rest frontier'
+        (_, h) =
+          NEL.head a
+        seen' =
+          Set.insert h seen
+        a' =
+          filter (\(_, p) -> snd (NEL.head p) `Set.notMember` seen') (runRules h (toList a))
+      in
+        if null a'
+          then a : go seen' frontier''
+          else
+            if Set.member h seen
+              then a : go seen frontier''
+              else go seen' (enqueue frontier'' a')
+    enqueue =
+      foldr (uncurry prepend)
+    prepend c p =
+      M.insertWith (<>) c [p]
     runRules h t =
       (\a -> (cost a, a)) <$> foldMap (run h t) (toList rs)
     run h t (l, r) =
       (\a' -> (l, a') :| t) <$> runRulePlated r h
 
+normalise ::
+  Algebra x ->
+  Algebra x
+normalise =
+  rewrite arithmetic
+
+normalisingRules ::
+  Ord x =>
+  [(RewriteLabel, Rule [] (Algebra x))]
+normalisingRules =
+  fmap wrap rules
+  where
+    wrap (RewriteIntroduceCardinality, r) =
+      (RewriteIntroduceCardinality, r)
+    wrap (l, Rule f) =
+      (l, Rule (fmap normalise . f))
+
 algebraSolutions ::
   Ord x =>
   Algebra x ->
   [NEL.NonEmpty (RewriteLabel, Algebra x)]
-algebraSolutions =
-  filter
-    ( \xs ->
-        ( case NEL.head xs of
-            (_, Cardinality _) -> True
-            _ -> False
+algebraSolutions a =
+  case normalise a of
+    n@(Cardinality _) ->
+      [(RewriteArithmetic, n) :| []]
+    n ->
+      filter
+        ( \xs ->
+            ( case NEL.head xs of
+                (_, Cardinality _) -> True
+                _ -> False
+            )
         )
-    )
-    . algebraSearch rules searchPathCost
+        (algebraSearch normalisingRules searchPathCost n)
 
 algebraCardinality ::
   Ord x =>

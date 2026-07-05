@@ -8,7 +8,6 @@ module TypeAlgebra.Algebra
   )
 where
 
-import Control.Applicative (liftA2)
 import Control.Lens (Plated (plate))
 import qualified Data.Map as M
 

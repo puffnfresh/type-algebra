@@ -22,9 +22,9 @@ import TypeAlgebra.Algebra (Algebra (..), Cardinality (..), Variance (..), subst
 arithmetic ::
   Algebra x ->
   Maybe (Algebra x)
-arithmetic (Sum a (Cardinality Infinite)) =
+arithmetic (Sum _ (Cardinality Infinite)) =
   Just (Cardinality Infinite)
-arithmetic (Sum (Cardinality Infinite) a) =
+arithmetic (Sum (Cardinality Infinite) _) =
   Just (Cardinality Infinite)
 arithmetic (Sum a (Cardinality (Finite  0))) =
   Just a

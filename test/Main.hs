@@ -35,6 +35,7 @@ main =
               ("∀ x. x -> (x + x)", propertyExampleTwo),
               ("∀ x. (x, x) -> (x, x)", propertyExamplePair),
               ("∀ a b c. (a -> b) -> (b -> c) -> a -> c", propertyExampleCompose),
+              ("∀ a. (a + 1) -> (a + 1) -> (a + 1)", propertyExampleAlt),
               ("∞ -> 2", propertyExampleInfiniteTwo)
             ]
         )
@@ -99,9 +100,7 @@ propertyRemoveDuplicates =
   withTests 1 . property $ do
     let example = Exponent (Sum (Cardinality (Finite 1)) (Cardinality (Finite 2))) (Cardinality (Finite 3)) :: Algebra ()
     algebraSolutions example
-      === [ (RewriteArithmetic, Cardinality (Finite 27))
-              :| [(RewriteArithmetic, Exponent (Cardinality (Finite 3)) (Cardinality (Finite 3)))]
-          ]
+      === [(RewriteArithmetic, Cardinality (Finite 27)) :| []]
 
 propertyExampleBoolBool :: Property
 propertyExampleBoolBool =
@@ -166,6 +165,13 @@ propertyExampleTwo =
   withTests 1 . property $ do
     let example = Forall ("x" :: String) (Exponent (Sum (Var "x") (Var "x")) (Var "x"))
     algebraCardinality example === Just (Finite 2)
+
+propertyExampleAlt :: Property
+propertyExampleAlt =
+  withTests 1 . property $ do
+    let o = Sum (Var "a") (Cardinality (Finite 1))
+        example = Forall ("a" :: String) (Exponent (Exponent o o) o)
+    algebraCardinality example === Just (Finite 12)
 
 propertyExampleInfiniteTwo :: Property
 propertyExampleInfiniteTwo =

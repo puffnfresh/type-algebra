@@ -10,8 +10,9 @@ extra-source-files:  CHANGELOG.md
 library
   build-depends:       base >=4.13 && <4.21
                      , containers >=0.6 && <0.7
-                     , lens >=4.16 && <5.3
+                     , lens >=4.16 && <5.4
                      , transformers >=0.5.4 && <0.7
+                     , comonad >=4.0 && <5.1
   exposed-modules:     TypeAlgebra
                      , TypeAlgebra.Algebra
                      , TypeAlgebra.Rewrites

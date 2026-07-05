@@ -1,5 +1,3 @@
-{-# LANGUAGE TupleSections #-}
-
 module TypeAlgebra.Rules
   ( Rule (..),
     runRulePlated,
@@ -8,10 +6,10 @@ module TypeAlgebra.Rules
   )
 where
 
-import Control.Lens (Plated, transformM)
-import Control.Monad.Trans.Writer (WriterT (WriterT, runWriterT))
-import Data.Foldable (Foldable (toList), asum)
-import Data.Monoid (Sum)
+import Control.Comonad.Store (experiment)
+import Control.Lens (Plated, contexts)
+import Control.Monad ((>=>))
+import Data.Foldable (Foldable (toList))
 import TypeAlgebra.Algebra (Algebra)
 import TypeAlgebra.Rewrites
   ( arithmetic,
@@ -37,16 +35,7 @@ runRulePlated ::
   a ->
   [a]
 runRulePlated (Rule f) =
-  asum . fmap filterIdentity . runWriterT . transformM go
-  where
-    filterIdentity (a, b) =
-      [a | b == (1 :: Sum Int)]
-    go a =
-      let as =
-            f a
-          as' =
-            fmap (,1) (toList as)
-       in WriterT ((a, 0 :: Sum Int) : as')
+  contexts >=> experiment (toList . f)
 
 data RewriteLabel
   = RewriteArithmetic
