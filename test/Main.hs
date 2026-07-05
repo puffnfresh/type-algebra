@@ -2,7 +2,6 @@
 
 module Main where
 
-import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.Map as M
 import Hedgehog (Gen, Group (..), Property, checkParallel, forAll, property, withTests, (===))
 import Hedgehog.Gen (element, unicodeAll)
@@ -28,6 +27,7 @@ main =
         ( Group
             "TypeAlgebra"
             [ ("no repetitive rewrites in solution", propertyRemoveDuplicates),
+              ("cardinality input is solved with zero steps", propertyAlreadySolved),
               ("2 -> 2", propertyExampleBoolBool),
               ("∀ a. ∀ b. (a -> b) -> (a + 1) -> (b + 1)", propertyExampleMapMaybe),
               ("∀ x. x -> x", propertyExampleIdentity),
@@ -100,7 +100,13 @@ propertyRemoveDuplicates =
   withTests 1 . property $ do
     let example = Exponent (Sum (Cardinality (Finite 1)) (Cardinality (Finite 2))) (Cardinality (Finite 3)) :: Algebra ()
     algebraSolutions example
-      === [(RewriteArithmetic, Cardinality (Finite 27)) :| []]
+      === [(Finite 27, [(RewriteArithmetic, Cardinality (Finite 27))])]
+
+propertyAlreadySolved :: Property
+propertyAlreadySolved =
+  withTests 1 . property $ do
+    algebraSolutions (Cardinality (Finite 3) :: Algebra ())
+      === [(Finite 3, [])]
 
 propertyExampleBoolBool :: Property
 propertyExampleBoolBool =

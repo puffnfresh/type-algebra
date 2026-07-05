@@ -30,7 +30,7 @@ x =
         (Sum (Var "a") (Cardinality (Finite 1)) ->>
         Sum (Var "b") (Cardinality (Finite 1)))))
 
-traverse_ (putStrLn . prettySolution  x) (take 1 (algebraSolutions x))
+traverse_ (putStrLn . prettySolution x . snd) (take 1 (algebraSolutions x))
 ```
 
 And the proof can also be pretty printed to LaTeX/MathJax:

@@ -7,8 +7,6 @@ module TypeAlgebra.Pretty
 where
 
 import Data.List (intersperse)
-import Data.List.NonEmpty (NonEmpty ((:|)), toList)
-import qualified Data.List.NonEmpty as NEL
 import TypeAlgebra.Algebra (Algebra (..), Cardinality (..))
 import TypeAlgebra.Rules (RewriteLabel (..))
 
@@ -42,18 +40,22 @@ rewriteLabel RewriteRemoveForall =
 
 mathjaxSolution ::
   Algebra String ->
-  NonEmpty (RewriteLabel, Algebra String) ->
+  [(RewriteLabel, Algebra String)] ->
   String
 mathjaxSolution x xs =
   unlines
     ( "\\begin{align*}" :
-      intersperse "\\\\" (prettyPrec' (0 :: Int) x (" " <> prettyJustified x') : fmap prettyJustified xs')
+      intersperse "\\\\" body
         <> [ "\\end{align*}"
            ]
     )
   where
-    (x' :| xs') =
-      NEL.reverse xs
+    body =
+      case reverse xs of
+        [] ->
+          [prettyPrec' (0 :: Int) x ""]
+        (x' : xs') ->
+          prettyPrec' (0 :: Int) x (" " <> prettyJustified x') : fmap prettyJustified xs'
 
     prettyPrec' _ (Cardinality c) =
       prettyCardinality c
@@ -73,11 +75,11 @@ mathjaxSolution x xs =
 
 prettySolution ::
   Algebra String ->
-  NEL.NonEmpty (RewriteLabel, Algebra String) ->
+  [(RewriteLabel, Algebra String)] ->
   String
 prettySolution x xs =
   unlines
-    (prettyPrec 0 x "" : reverse (toList (fmap f xs)))
+    (prettyPrec 0 x "" : reverse (fmap f xs))
   where
     f (t, a) =
       "= " <> prettyPrec 0 a ("\t-- via " <> rewriteLabel t)

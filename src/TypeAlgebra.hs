@@ -16,7 +16,7 @@ import Data.Functor (($>))
 import Data.List.NonEmpty (NonEmpty ((:|)))
 import qualified Data.List.NonEmpty as NEL
 import qualified Data.Map as M
-import Data.Maybe (listToMaybe)
+import Data.Maybe (listToMaybe, mapMaybe)
 import Data.Monoid (Sum)
 import qualified Data.Set as Set
 import TypeAlgebra.Algebra (Algebra (..), Cardinality (..), Variance (..), subst, variance)
@@ -116,31 +116,28 @@ normalisingRules =
 algebraSolutions ::
   Ord x =>
   Algebra x ->
-  [NEL.NonEmpty (RewriteLabel, Algebra x)]
+  [(Cardinality, [(RewriteLabel, Algebra x)])]
 algebraSolutions a =
   case normalise a of
-    n@(Cardinality _) ->
-      [(RewriteArithmetic, n) :| []]
+    n@(Cardinality c) ->
+      [(c, folded n)]
     n ->
-      filter
-        ( \xs ->
-            ( case NEL.head xs of
-                (_, Cardinality _) -> True
-                _ -> False
-            )
-        )
-        (algebraSearch normalisingRules searchPathCost n)
+      mapMaybe (solution n) (algebraSearch normalisingRules searchPathCost n)
+  where
+    solution n xs =
+      case NEL.head xs of
+        (_, Cardinality c) ->
+          Just (c, toList xs <> folded n)
+        _ ->
+          Nothing
+    folded n =
+      if n == a
+        then []
+        else [(RewriteArithmetic, n)]
 
 algebraCardinality ::
   Ord x =>
   Algebra x ->
   Maybe Cardinality
-algebraCardinality (Cardinality c) =
-  Just c
-algebraCardinality a =
-  listToMaybe (algebraSolutions a) >>= f . snd . NEL.head
-  where
-    f (Cardinality n) =
-      Just n
-    f _ =
-      Nothing
+algebraCardinality =
+  fmap fst . listToMaybe . algebraSolutions
